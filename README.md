@@ -43,10 +43,10 @@ La cadena de conexión está en `src/Monolegal.Web/appsettings.json`:
 
 ### 1. Descargar el proyecto
 
-En la página del repositorio pulse **Code** y copie la dirección. En una terminal:
+En la página del repositorio pulse **Code** y copie la dirección, o use esta:
 
 ```powershell
-git clone DIRECCION-DEL-REPOSITORIO
+git clone https://github.com/duvansuspe/Prueba-Monolegal.git
 cd Prueba-Monolegal
 ```
 
