@@ -1,0 +1,218 @@
+@model PaginaFacturas
+@{
+    ViewData["Title"] = "Recordatorios";
+    var cultura = new System.Globalization.CultureInfo("es-CO");
+    var clienteSeleccionado = Model.Resumen.Clientes.FirstOrDefault(cliente => cliente.Id == Model.ClienteId);
+    string Etiqueta(string estado) => estado switch
+    {
+        "primerrecordatorio" => "Primer recordatorio",
+        "segundorecordatorio" => "Segundo recordatorio",
+        "desactivado" => "Desactivado",
+        "pagada" => "Pagada",
+        _ => estado
+    };
+}
+
+<div class="page">
+    <header class="top">
+        <div class="brand">
+            <span class="seal">Ml</span>
+            <div>
+                <p class="eyebrow">Cartera y recordatorios</p>
+                <h1>Monolegal</h1>
+            </div>
+        </div>
+        <div class="top-actions">
+            <form method="post" asp-action="Procesar" onsubmit="return confirm('Se revisarán las facturas de los 3 clientes. El estado solo cambia después de enviar el correo. ¿Continuar?');">
+                <button type="submit" class="primary">Procesar los 3 clientes</button>
+            </form>
+            <form method="post" asp-action="Reiniciar" onsubmit="return confirm('Se volverán a cargar los 3 clientes de demostración. ¿Continuar?');">
+                <button type="submit" class="ghost">Restablecer datos</button>
+            </form>
+        </div>
+    </header>
+
+    <section class="rule">
+        <p><strong>primerrecordatorio</strong> envía el aviso de paso a segundo recordatorio y después el estado queda en <strong>segundorecordatorio</strong>.</p>
+        <p><strong>segundorecordatorio</strong> envía el aviso de desactivación y después el estado queda en <strong>desactivado</strong>.</p>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Aviso))
+    {
+        <p class="banner" role="status">@Model.Aviso</p>
+    }
+
+    <section class="stats">
+        <article>
+            <span>Facturas</span>
+            <strong>@Model.Resumen.TotalFacturas</strong>
+        </article>
+        <article>
+            <span>Primer recordatorio</span>
+            <strong>@Model.Resumen.PrimerRecordatorio</strong>
+        </article>
+        <article>
+            <span>Segundo recordatorio</span>
+            <strong>@Model.Resumen.SegundoRecordatorio</strong>
+        </article>
+        <article>
+            <span>Desactivadas</span>
+            <strong>@Model.Resumen.Desactivadas</strong>
+        </article>
+        <article>
+            <span>Valor en gestión</span>
+            <strong>@Model.Resumen.ValorEnGestion.ToString("C0", cultura)</strong>
+        </article>
+    </section>
+
+    <section class="clients">
+        @foreach (var cliente in Model.Resumen.Clientes)
+        {
+            <article class="client @(Model.ClienteId == cliente.Id ? "active" : "")">
+                <header>
+                    <h2>@cliente.Nombre</h2>
+                    @if (Model.ClienteId == cliente.Id)
+                    {
+                        <a asp-action="Index">Ver todos</a>
+                    }
+                    else
+                    {
+                        <a class="ver" asp-action="Index" asp-route-clienteId="@cliente.Id" asp-fragment="facturas">Ver sus facturas</a>
+                    }
+                </header>
+                <p>@cliente.Email</p>
+                <p class="doc">Documento @cliente.Documento</p>
+                <dl>
+                    <div>
+                        <dt>Facturas</dt>
+                        <dd>@cliente.TotalFacturas</dd>
+                    </div>
+                    <div>
+                        <dt>Por procesar</dt>
+                        <dd>@cliente.Gestionables</dd>
+                    </div>
+                    <div>
+                        <dt>Valor</dt>
+                        <dd>@cliente.ValorGestionable.ToString("C0", cultura)</dd>
+                    </div>
+                </dl>
+                <form method="post" asp-action="ProcesarCliente" asp-route-id="@cliente.Id" onsubmit="return confirm('¿Procesar las facturas de @cliente.Nombre?');">
+                    <button type="submit">Procesar cliente</button>
+                </form>
+            </article>
+        }
+    </section>
+
+    <section class="panel" id="facturas">
+        <div class="panel-head">
+            <div>
+                @if (clienteSeleccionado is null)
+                {
+                    <h2>Resumen de facturas</h2>
+                    <p class="meta">Elija «Ver sus facturas» en un cliente para ver solo las suyas y enviar el correo.</p>
+                }
+                else
+                {
+                    <h2>Facturas de @clienteSeleccionado.Nombre</h2>
+                    <p class="meta">@clienteSeleccionado.Email · @Model.FacturasVisibles.Count factura(s). El correo solo se envía si el estado es primerrecordatorio o segundorecordatorio.</p>
+                }
+            </div>
+            <form method="get" asp-action="Index" class="filters">
+                @if (!string.IsNullOrWhiteSpace(Model.ClienteId))
+                {
+                    <input type="hidden" name="clienteId" value="@Model.ClienteId" />
+                }
+                <button type="submit" name="estado" value="" class="@(string.IsNullOrEmpty(Model.Estado) ? "on" : "")">Todas</button>
+                <button type="submit" name="estado" value="primerrecordatorio" class="@(Model.Estado == "primerrecordatorio" ? "on" : "")">Primer recordatorio</button>
+                <button type="submit" name="estado" value="segundorecordatorio" class="@(Model.Estado == "segundorecordatorio" ? "on" : "")">Segundo recordatorio</button>
+                <button type="submit" name="estado" value="desactivado" class="@(Model.Estado == "desactivado" ? "on" : "")">Desactivado</button>
+                <button type="submit" name="estado" value="pagada" class="@(Model.Estado == "pagada" ? "on" : "")">Pagada</button>
+            </form>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Factura</th>
+                        <th>Cliente</th>
+                        <th>Concepto</th>
+                        <th>Valor</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                        <th>Correo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.FacturasVisibles.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="empty">Este cliente no tiene facturas con el filtro elegido.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var factura in Model.FacturasVisibles)
+                        {
+                            <tr>
+                                <td class="num">@factura.Numero</td>
+                                <td>
+                                    <span class="who">@factura.ClienteNombre</span>
+                                    <span class="mail">@factura.ClienteEmail</span>
+                                </td>
+                                <td>@factura.Concepto</td>
+                                <td class="money">@factura.Valor.ToString("C0", cultura)</td>
+                                <td>@factura.FechaVencimiento.ToLocalTime().ToString("d MMM yyyy", cultura)</td>
+                                <td>
+                                    <span class="badge" data-estado="@factura.Estado">@factura.Estado</span>
+                                    <span class="mail">@Etiqueta(factura.Estado)</span>
+                                </td>
+                                <td>
+                                    @if (factura.Gestionable)
+                                    {
+                                        <form method="post" asp-action="EnviarCorreo" asp-route-id="@factura.Id" asp-route-clienteId="@factura.ClienteId">
+                                            <button type="submit" class="send">
+                                                @(factura.Estado == "primerrecordatorio"
+                                                    ? "Enviar correo y pasar a segundo recordatorio"
+                                                    : "Enviar correo y desactivar")
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="mail">Este estado no recibe correo</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Correos enviados</h2>
+            <p class="meta">Se guardan después de un envío exitoso. También llegan al correo configurado.</p>
+        </div>
+        @if (Model.Correos.Count == 0)
+        {
+            <p class="empty-block">Todavía no se ha enviado ningún correo. Procese un cliente para generar el primer aviso.</p>
+        }
+        else
+        {
+            <ul class="mail-list">
+                @foreach (var correo in Model.Correos)
+                {
+                    <li>
+                        <p class="subject">@correo.Asunto</p>
+                        <p class="meta">@correo.ClienteNombre · @correo.Destinatario · @correo.FechaEnvio.ToLocalTime().ToString("d MMM yyyy, h:mm tt", cultura)</p>
+                        <span class="flow">@correo.EstadoAnterior → @correo.EstadoNuevo</span>
+                        <p>@correo.Mensaje</p>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>

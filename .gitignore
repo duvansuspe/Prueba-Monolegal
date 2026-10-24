@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+
+client/node_modules/
+client/dist/
+client/.angular/
+
+*.log
+.env
